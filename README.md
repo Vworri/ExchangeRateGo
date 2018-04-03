@@ -1,9 +1,9 @@
 # Golang Currency Exchange API
-This API is set up to return exchange rates and evaluate currency exchanges as well as keep a local store od data up-to-date.
+This API is set up to return exchange rates and evaluate currency exchanges as well as keep a local store of data up-to-date.
 ##  Getting started API:
 	1. pull from github: https://github.com/Vworri/ExchangeRateGo.git	2. make sure you have a recent version of Docker 
-    3. if you have a Linux O.S., all you have to do is run the deploy.sh script (remember to give execute permission)
-    4. the container should be up and running, mapped to port 8080
+    3. All you have to do is run the deploy.sh script (remember to give execute permission)
+    4. The container should be up and running, mapped to port 8080
 ## Exchange
 There are only two required fields in the query:
 origin: the initial currencry from which you would like to exchange
