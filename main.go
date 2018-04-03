@@ -15,6 +15,7 @@ import (
 
 )
 var layout = "2006-01-02";
+
 func main(){
 	//Example query: http://localhost:8080/api?date=2018-03-28&dest=usd&orig=aud&amount=4
 	GetEchangeRateFile() ;
@@ -23,56 +24,60 @@ func main(){
 	go http.ListenAndServe(":8080", nil);
 	DailyTask();
 }
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// API handler functions
 func ApiResponse(res http.ResponseWriter, req *http.Request){
-
-	if req.Method != "GET"{
+	if req.Method != "GET"{ //Ensures only get requests are allowed
 		http.Error(res, http.StatusText(405), 405)
 		res.Write([]byte("This request method is not supported"))
 		return
 	}
-	var err  error;
-	var amountStr string;
-	exchange := new(ExResp);
-	if req.URL.Query()["date"] != nil{
+	var err  error; // created an err valiable 
+	var amountStr string; //created a variable for the url query param repr of amount
+	exchange := new(ExResp); // create new response
+	if req.URL.Query()["date"] != nil{//handle date
 	exchange.RateDate =  req.URL.Query()["date"][0];
 	}else {exchange.RateDate = time.Now().Format(layout)}
-	exchange.Orig = req.URL.Query()["orig"][0];
-	exchange.Dest  = req.URL.Query()["dest"][0];
-	if  req.URL.Query()["amount"] != nil{
+	exchange.Orig = req.URL.Query()["orig"][0]; // get origin currency
+	exchange.Dest  = req.URL.Query()["dest"][0]; // get final currency
+	if  req.URL.Query()["amount"] != nil{// handle string amount
 		amountStr =  req.URL.Query()["amount"][0];
 	}else{amountStr = "1"}
-	exchange.OriginalAmount, err  = strconv.ParseFloat(amountStr, 64)
+	exchange.OriginalAmount, err  = strconv.ParseFloat(amountStr, 64)// get float representation of amount
 	if err != nil {
 		log.Fatal(err.Error());
 	}
-	ex := RetrieveLocalData();
-	exchange.RateDate, exchange.Rate, err = ex.At(exchange.RateDate, exchange.Orig, exchange.Dest)
+	ex := RetrieveLocalData(); // finaly get exchange data
+	exchange.RateDate, exchange.Rate, err = ex.At(exchange.RateDate, exchange.Orig, exchange.Dest) // get rate info
 	if err != nil {
 		log.Fatal(err.Error());
 	}
-	exchange.ResultAmount = strconv.FormatFloat(exchange.OriginalAmount*exchange.Rate, 'f', 6, 64);
+	exchange.ResultAmount = strconv.FormatFloat(exchange.OriginalAmount*exchange.Rate, 'f', 6, 64);// evaluate rate 
 	json.NewEncoder(res).Encode(exchange)
 	return
 }
 
 func InfoResponse(res http.ResponseWriter, req *http.Request){
-	info := new(Info)
-	ex := RetrieveLocalData();
-	info.MaxDt, info.MinDt = ex.getMInMaxDates()
+	info := new(Info) // get pointer to response structure
+	ex := RetrieveLocalData(); // get exchange data
+	info.MaxDt, info.MinDt = ex.getMInMaxDates() // find min and max dates
 	json.NewEncoder(res).Encode(info)
 	return
 	}
 
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ // worker code
 func DailyTask(){
 	gocron.Every(1).Day().At("16:45").Do(GetEchangeRateFile);
 	<- gocron.Start();
 	gocron.Remove(GetEchangeRateFile);
 	gocron.Clear();
 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Aux functions
 
 func GetEchangeRateFile() {
+	// retrieve file from feed
 	resp, err := http.Get ("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml");
 	log.Println("STARTED: Collecting exchange rates");
 	if err != nil {
@@ -96,6 +101,7 @@ func GetEchangeRateFile() {
 
 
 func RetrieveLocalData() *ExchangeData{
+	//open local file
 	dataFile, err := os.Open("ExchangeData.xml")
 	if err != nil {
 		log.Fatal(err.Error());
@@ -120,7 +126,7 @@ func (exData *ExchangeData) At(t string,dest string, orig string)(string, float6
 	layout := "2006-01-02"
 	date ,_ := time.Parse(layout, t);
 	max, min := exData.getMInMaxDates()
-	if date.After(max) || date.Before(min){
+	if date.After(max) || date.Before(min){// check to make sure the date is within bounds. defaults to most recent; could make panic
 		t = max.Format(layout)
 	}
 	for _, entry := range data {
@@ -150,6 +156,7 @@ func  (exData *ExchangeData) getMInMaxDates()(time.Time, time.Time){
 		log.Panic(err.Error())
 	}
 	min_date := time.Now()
+	// have to iterate becasue no max and min functions at all yet alone for dates
 	for _, entry := range data {
 		thisTime, timeErr := time.Parse(layout, entry.Time)
 		if timeErr != nil{
@@ -166,7 +173,8 @@ func  (exData *ExchangeData) getMInMaxDates()(time.Time, time.Time){
 
 	return  max_date, min_date
 }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Structs used for xml parsing
 type ExchangeData struct {
 	XMLNmae       xml.Name      `xml:"gesmes:Envelope"`
 	FullData  []RateByTime `xml:"Cube>Cube"`
@@ -192,7 +200,8 @@ type ExResp struct {
 	ResultAmount string `json:"resultAmount"`
 }
 
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// data info return
 type Info struct {
 	MaxDt time.Time `json:"max"`
 	MinDt time.Time `json:"min"`
