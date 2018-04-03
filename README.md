@@ -1,4 +1,4 @@
-# Python Currency Exchange API
+# Golang Currency Exchange API
 This API is set up to return exchange rates and evaluate currency exchanges as well as keep a local store od data up-to-date.
 ##  Getting started API:
 	1. pull from github: https://github.com/Vworri/ExchangeRateGo.git	2. make sure you have a recent version of Docker 
